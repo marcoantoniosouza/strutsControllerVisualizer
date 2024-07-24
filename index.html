@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <title>Struts Controller Visualizer</title>
+</head>
+<body class="dark">
+    <nav class="nav">
+        <div class="nav-left">
+            <a class="brand" href="#">Struts Controller Visualizer</a>
+            <div class="tabs">
+                <a id="tabSplit" onclick="setViewMode('split')" class="active"> <i class="fa-solid fa-table-columns"></i>Split Screen</a>
+                <a id="tabFile" onclick="setViewMode('fileOnly')"><i class="fa-solid fa-file"></i>XML File Only</a>
+                <a id="tabList" onclick="setViewMode('listOnly')"><i class="fa-solid fa-list"></i> Action List Only</a>
+            </div>
+        </div>
+        <div class="nav-center">
+            <p class="button clear" id="navFileName"></p>
+        </div>
+        <div class="nav-right">
+          <a class="button outline" onclick="clickFileSelection()">Select File</a>
+        </div>
+    </nav>
+    <div class="container col-12">
+        <div>
+            <input type="file" name="file" id="file" accept=".xml" onchange="scanFile()" class="is-hidden">
+        </div>
+    
+        <div class="row">
+            <div id="fileContentCol" class="col-5">
+                <div class="row"><h3 class="">XML</h3></div>
+                <pre><code id="fileContents"></code></pre>
+            </div>
+            <div id="actionList" class="col-7">
+                <div class="row"><h3 class="">Actions</h3></div>
+                <div id="actionListContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function clickFileSelection() {
+            document.getElementById("file").click();
+        }
+
+        function hideElement(elementId) {
+            addClass(elementId, "is-hidden");
+        }
+
+        function showElement(elementId) {
+            removeClass(elementId, "is-hidden");
+        }
+
+        function addClass(elementId, className) {
+            document.getElementById(elementId).classList.add(className);
+        }
+
+        function removeClass(elementId, className) {
+            document.getElementById(elementId).classList.remove(className);
+        }
+
+        function setViewMode(viewMode) {
+            removeClass("tabSplit", "active");
+            removeClass("tabFile", "active");
+            removeClass("tabList", "active");
+
+            if (viewMode == "split") {
+                showElement("fileContentCol");
+                showElement("actionList");
+
+                addClass("tabSplit", "active");
+            }
+
+            if (viewMode == "fileOnly") {
+                showElement("fileContentCol");
+                hideElement("actionList");
+
+                addClass("tabFile", "active");
+            }
+
+            if (viewMode == "listOnly") {
+                hideElement("fileContentCol");
+                showElement("actionList");
+
+                addClass("tabList", "active");
+            }
+        }
+
+        function newCard(name, type, forwards) {
+            var div = document.createElement('div');
+
+            let forwardHtml = ""
+
+            forwards.forEach(forward => {
+                forwardHtml += `
+                    <div class="row">
+                        <div class="col">${forward.name}</div>
+                        <div class="col-1">
+                            <i class="fa-solid fa-circle-arrow-right"></i>
+                        </div>
+                        <div class="col">${forward.path}</div>
+                    </div>
+                `.trim();
+            });
+
+            div.innerHTML = `
+            <div class="card">
+                <header>
+                    <h4>Action: ${name}</h4>
+                </header>
+                <div class="row">
+                    <div class="col is-vertical-align">${type}</div>
+                    <div class="col">${forwardHtml}</div>
+                </div>
+            </div>
+            `.trim();
+
+            return div.firstChild;
+        }
+
+        function scanFile() {
+            var file = document.getElementById("file").files[0];
+            document.getElementById("fileContents").innerHTML = "Loading file...";
+            document.getElementById("actionListContent").innerHTML = "Loading actions...";
+
+            if (file) {
+                document.getElementById("navFileName").innerText = file.name
+
+                var reader = new FileReader();
+                reader.readAsText(file, "ISO-8859-1");
+                reader.onload = function (evt) {
+                    const xmlFile = evt.target.result;
+                    const highlightedCode = hljs.highlight(xmlFile, { language: 'xml' }).value;
+                    
+                    document.getElementById("fileContents").innerHTML = highlightedCode;
+                    parser = new DOMParser();
+                    xmlDoc = parser.parseFromString(xmlFile,"text/xml");
+                    const actions = xmlDoc.getElementsByTagName("action");
+                    
+                    document.getElementById("actionListContent").innerHTML = "";
+                    for (let i = 0; i < actions.length; i++) {
+                        let forwards = [];
+                        for (let j = 0; j < actions[i].getElementsByTagName("forward").length; j++) {
+                            forwards.push({
+                                name: actions[i].getElementsByTagName("forward")[j].getAttribute('name'),
+                                path: actions[i].getElementsByTagName("forward")[j].getAttribute('path')
+                            })
+                        }
+
+                        const path = actions[i].getAttribute('path');
+                        const type = actions[i].getAttribute('type');
+
+                        
+                        document.getElementById("actionListContent").append(newCard(path, type, forwards))
+                        document.getElementById("actionListContent").append(document.createElement('br'))
+                    }
+                }
+                reader.onerror = function (evt) {
+                    document.getElementById("fileContents").innerHTML = "error reading file";
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/panda-syntax-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/go.min.js"></script>
+    <style>
+        body.dark {
+            --bg-color: #000;
+            --bg-secondary-color: #131316;
+            --font-color: #f5f5f5;
+            --color-grey: #ccc;
+            --color-darkGrey: #777;
+        }
+    </style>
+</body>
+</html>
